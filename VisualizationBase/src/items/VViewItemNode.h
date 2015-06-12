@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  **
- ** Copyright (c) 2011, 2015 ETH Zurich
+ ** Copyright (c) 2015 ETH Zurich
  ** All rights reserved.
  **
  ** Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -23,14 +23,37 @@
  ** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **********************************************************************************************************************/
-
 #pragma once
 
-#include "precompiled.h"
+#include "../visualizationbase_api.h"
+#include "../../VisualizationBase/src/items/ItemWithNode.h"
+#include "../../VisualizationBase/src/declarative/DeclarativeItem.h"
+#include "../../VisualizationBase/src/items/EmptyItem.h"
+#include "nodes/ViewItemNode.h"
 
-// This should be defined in the project file of the plug-in that exports symbols
-#if defined(PLUGINNAME_UPPERCASE_LIBRARY)
-	#define PLUGINNAME_UPPERCASE_API Q_DECL_EXPORT
-#else
-	#define PLUGINNAME_UPPERCASE_API Q_DECL_IMPORT
-#endif
+
+namespace Visualization {
+
+/**
+ * The VVIewItemNode class visualizes a ViewItemNode, either by visualizing its
+ * reference if it exists, or else rendering an empty item for spacing
+ */
+class VISUALIZATIONBASE_API VViewItemNode :
+		public Super<ItemWithNode<VViewItemNode, DeclarativeItem<VViewItemNode>, ViewItemNode>> {
+
+	ITEM_COMMON_CUSTOM_STYLENAME(VViewItemNode, DeclarativeItemBaseStyle)
+
+	public:
+		VViewItemNode(Item* parent, NodeType* node, const StyleType* style = itemStyles().get());
+
+		static void initializeForms();
+		virtual int determineForm() override;
+
+		bool determineSpacing();
+
+	private:
+		Item* reference_{};
+		EmptyItem* spacing_{};
+};
+
+}

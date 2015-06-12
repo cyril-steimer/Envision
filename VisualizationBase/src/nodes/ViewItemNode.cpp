@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 **
-** Copyright (c) 2011, 2014 ETH Zurich
+** Copyright (c) 2015 ETH Zurich
 ** All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -24,36 +24,37 @@
 **
 ***********************************************************************************************************************/
 
-#pragma once
+#include "ViewItemNode.h"
 
-#include "../oomodel_api.h"
+#include "ModelBase/src/nodes/TypedListDefinition.h"
+DEFINE_TYPED_LIST(Visualization::ViewItemNode)
 
-#include "../expressions/Expression.h"
-#include "../expressions/ReferenceExpression.h"
+namespace Visualization {
 
-DECLARE_TYPED_LIST(OOMODEL_API, OOModel, MemberInitializer)
+NODE_DEFINE_TYPE_REGISTRATION_METHODS(ViewItemNode)
 
-namespace OOModel {
-/**
- *	This class represent various forms of member initializers.
- * It may be a call to a super constructor then \a memberReference will denote
- * the callee of the super constructor and \a initializedValue will denote the arguments.
- * In case of delegating constructors the \a memberRef will be empty,
- * as the \a initializedValue will contain a method call.
- * For simple member field initializers the \a memberReference will contain a reference to the field
- * and \a initializedValue the valued it should be initialized to
- */
-class OOMODEL_API MemberInitializer : public Super<Model::CompositeNode>
+ViewItemNode::ViewItemNode(Model::Node* parent)
+	:Super(parent)
 {
-	COMPOSITENODE_DECLARE_STANDARD_METHODS(MemberInitializer)
+}
 
-	ATTRIBUTE(Expression, initializedValue, setInitializedValue)
-	ATTRIBUTE(ReferenceExpression, memberReference, setMemberReference)
+ViewItemNode::ViewItemNode(Model::Node* parent, Model::PersistentStore&, bool)
+	:Super(parent)
+{
+	Q_ASSERT(false);
+}
 
-	public:
-		MemberInitializer(ReferenceExpression* memberRef, Expression* initValue);
-		MemberInitializer(Expression* initValue);
+ViewItemNode* ViewItemNode::withSpacingTarget(Model::Node *spacingTarget)
+{
+	auto result = new ViewItemNode(nullptr);
+	result->setSpacingTarget(spacingTarget);
+	return result;
+}
 
-};
-
+ViewItemNode* ViewItemNode::withReference(Model::Node *reference)
+{
+	auto result = new ViewItemNode(nullptr);
+	result->setReference(reference);
+	return result;
+}
 }

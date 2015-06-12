@@ -24,67 +24,85 @@
  **
  **********************************************************************************************************************/
 
-#include "CAddNodeToView.h"
+#include "CAddCalleesToView.h"
 #include "VisualizationBase/src/items/ViewItem.h"
-#include "OOModel/src/declarations/Declaration.h"
+#include "OOModel/src/declarations/Method.h"
+#include "OOModel/src/expressions/MethodCallExpression.h"
+
 
 namespace OOInteraction {
 
-CAddNodeToView::CAddNodeToView()
-	:CommandWithDefaultArguments("addNode", {"current", "0", "0"})
+CAddCalleesToView::CAddCalleesToView()
+	:CommandWithDefaultArguments("addCallees", {""})
 {
 }
 
-bool CAddNodeToView::canInterpret(Visualization::Item* source, Visualization::Item* target,
+bool CAddCalleesToView::canInterpret(Visualization::Item* source, Visualization::Item* target,
 	const QStringList& commandTokens, const std::unique_ptr<Visualization::Cursor>& cursor)
 {
 	bool canInterpret = CommandWithDefaultArguments::canInterpret(source, target, commandTokens, cursor);
-	//The first parent with a node should be a declaration (these can be added to the view here)
 	auto ancestor = source->findAncestorWithNode();
 	if (!ancestor) return false;
 	else
-		return canInterpret && DCast<OOModel::Declaration>(ancestor->node());
+		return canInterpret && DCast<OOModel::Method>(ancestor->node());
 }
 
-Interaction::CommandResult* CAddNodeToView::executeWithArguments(Visualization::Item* source, Visualization::Item*,
+Interaction::CommandResult* CAddCalleesToView::executeWithArguments(Visualization::Item* source, Visualization::Item*,
 		const QStringList& arguments, const std::unique_ptr<Visualization::Cursor>&)
 {
 	auto ancestor = source->findAncestorWithNode();
 	auto name = arguments.at(0);
-	auto colOk = true;
-	auto rowOk = true;
-	auto column = arguments.at(1).toInt(&colOk);
-	auto row = arguments.at(2).toInt(&rowOk);
-	if (name == "current")
-		name = ancestor->scene()->currentViewItem()->name();
-	auto view = ancestor->scene()->viewItem(name);
-	if (view && rowOk && colOk)
+
+	auto view = ancestor->scene()->currentViewItem();
+
+	if (view)
 	{
-		view->insertNode(ancestor->node(), column, row);
+		auto callees_ = callees(ancestor->node());
+		auto pos = view->positionOfItem(ancestor->parent());
+
+		if (callees_.size() > 0)
+		{
+			Model::Node* actualNode{};
+			//TODO@cyril What if it is in the view, but not as a top-level item?
+			if (pos.x() == -1)
+			{
+				view->insertColumn(0);
+				actualNode = view->insertNode(ancestor->node(), 0, 0);
+				pos = view->positionOfNode(actualNode);
+			}
+			else actualNode = ancestor->parent()->node();
+			view->insertColumn(pos.x() + 1);
+			auto row = 0;
+			//Make the first callee appear at the same height as the method
+			view->addSpacing(pos.x() + 1, row++, actualNode);
+			for (auto callee : callees_)
+				view->insertNode(callee, pos.x() + 1, row++);
+		}
 		return new Interaction::CommandResult();
 	}
-	else if (!view)
-		return new Interaction::CommandResult(new Interaction::CommandError(
-											"The view with name " + name + " does not exist"));
-	else if (!colOk)
-		return new Interaction::CommandResult(new Interaction::CommandError(
-												arguments.at(1) + " is not an integer"));
 	else
-		return new Interaction::CommandResult(new Interaction::CommandError(
-												arguments.at(2) + " is not an integer"));
-
+		return new Interaction::CommandResult(new Interaction::CommandError("View " + name + " does not exist"));
 }
 
-QString CAddNodeToView::description(Visualization::Item *, Visualization::Item *,
-		const QStringList &arguments, const std::unique_ptr<Visualization::Cursor> &)
+QSet<OOModel::Method*> CAddCalleesToView::callees(Model::Node* parent)
 {
-	auto name = arguments.at(0);
-	if (name == "current")
-		return "Add the current item to the current view at column " +
-				arguments.at(1) + " and row " + arguments.at(2);
-	else
-		return "Add the current item to the view " + name + " at column " +
-				arguments.at(1) + " and row " + arguments.at(2);
+	QSet<OOModel::Method*> result;
+	for (auto child : parent->children())
+	{
+		if (auto call = DCast<OOModel::MethodCallExpression>(child))
+			if (call->methodDefinition())
+				result.insert(call->methodDefinition());
+		result.unite(callees(child));
+	}
+	return result;
+}
+
+
+QString CAddCalleesToView::description(Visualization::Item*, Visualization::Item*,
+		const QStringList&, const std::unique_ptr<Visualization::Cursor>&)
+{
+	return "Add the callees of the current method to the current view";
 
 }
+
 }

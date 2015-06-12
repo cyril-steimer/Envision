@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  **
- ** Copyright (c) 2011, 2015 ETH Zurich
+ ** Copyright (c) 2015 ETH Zurich
  ** All rights reserved.
  **
  ** Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -26,11 +26,37 @@
 
 #pragma once
 
-#include "precompiled.h"
+#include "../oointeraction_api.h"
+#include "InteractionBase/src/commands/CommandWithDefaultArguments.h"
 
-// This should be defined in the project file of the plug-in that exports symbols
-#if defined(PLUGINNAME_UPPERCASE_LIBRARY)
-	#define PLUGINNAME_UPPERCASE_API Q_DECL_EXPORT
-#else
-	#define PLUGINNAME_UPPERCASE_API Q_DECL_IMPORT
-#endif
+
+namespace Visualization {
+	class Item;
+}
+
+namespace OOModel {
+	class Method;
+}
+
+namespace OOInteraction {
+
+class OOINTERACTION_API CAddCalleesToView : public Interaction::CommandWithDefaultArguments
+{
+	public:
+		CAddCalleesToView();
+
+		virtual bool canInterpret(Visualization::Item* source, Visualization::Item* target,
+				const QStringList& commandTokens, const std::unique_ptr<Visualization::Cursor>& cursor);
+
+	protected:
+		virtual Interaction::CommandResult* executeWithArguments(Visualization::Item* source, Visualization::Item* target,
+				const QStringList& arguments, const std::unique_ptr<Visualization::Cursor>& cursor);
+
+		virtual QString description(Visualization::Item* source, Visualization::Item* target,
+				const QStringList& arguments, const std::unique_ptr<Visualization::Cursor>& cursor);
+
+	private:
+		QSet<OOModel::Method*> callees(Model::Node* parent);
+};
+
+}

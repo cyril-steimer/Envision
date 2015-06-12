@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
  **
- ** Copyright (c) 2011, 2015 ETH Zurich
+ ** Copyright (c) 2015 ETH Zurich
  ** All rights reserved.
  **
  ** Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
@@ -23,14 +23,57 @@
  ** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **********************************************************************************************************************/
+#include "VViewItemNode.h"
 
-#pragma once
+#include "../src/declarative/DeclarativeItemDef.h"
+#include "nodes/ViewItemNode.h"
+#include "declarative/GridLayoutFormElement.h"
+#include "ViewItem.h"
 
-#include "precompiled.h"
+namespace Visualization {
 
-// This should be defined in the project file of the plug-in that exports symbols
-#if defined(PLUGINNAME_UPPERCASE_LIBRARY)
-	#define PLUGINNAME_UPPERCASE_API Q_DECL_EXPORT
-#else
-	#define PLUGINNAME_UPPERCASE_API Q_DECL_IMPORT
-#endif
+ITEM_COMMON_DEFINITIONS(VViewItemNode, "item")
+
+VViewItemNode::VViewItemNode(Item* parent, NodeType* node, const StyleType* style) :
+		Super(parent, node, style)
+{
+}
+
+void VViewItemNode::initializeForms()
+{
+	//We either visualize the target form, or have only spacing
+	addForm(item(&I::reference_, [](I* v) { return v->node()->reference(); }));
+	addForm(item(&I::spacing_, [](I* v) { return v->style(); }));
+}
+
+int VViewItemNode::determineForm()
+{
+	if (node()->reference()) return 0;
+	else return 1;
+}
+
+bool VViewItemNode::determineSpacing()
+{
+	Q_ASSERT(node()->reference() == nullptr);
+	if (auto target = node()->spacingTarget())
+	{
+		//The spacing could be in another view item (if we add an item to a not open view item)
+		//Then the spacing will be updated, when the view item is opened
+		if (auto targetItem = scene()->currentViewItem()->findVisualizationOf(target))
+		{
+			auto curYPos = scenePos().y();
+			auto curTargetYPos = targetItem->scenePos().y();
+			auto height = curTargetYPos - curYPos - 10;
+			height = height > 0 ? height : 0;
+			if (height != spacing_->heightInParent())
+			{
+				spacing_->setCustomSize(50, height);
+				setUpdateNeeded(RepeatUpdate);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+}

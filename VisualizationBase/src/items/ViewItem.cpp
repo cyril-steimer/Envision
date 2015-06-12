@@ -27,6 +27,8 @@
 
 #include "../src/declarative/DeclarativeItemDef.h"
 #include "declarative/DynamicGridFormElement.h"
+#include "nodes/ViewItemNode.h"
+#include "VViewItemNode.h"
 
 namespace Visualization {
 
@@ -47,25 +49,39 @@ void ViewItem::initializeForms()
 				  return self->nodesGetter(); }));
 }
 
-void ViewItem::insertNode(Model::Node* node, int column, int row)
+void ViewItem::insertColumn(int column)
 {
-	if (nodes_.size() < column)
-		nodes_.resize(column);
-	if (nodes_.size() <= column)
+	//Make sure we actually have enough columns
+	ensureColumnExists(column);
+	//Only insert the column, if the current one at index is not empty
+	auto isEmpty = true;
+	for (auto item : nodes_.at(column))
+		isEmpty = isEmpty && item == nullptr;
+	//If we have elements, insert a new column (else we can use the empty column)
+	if (!isEmpty)
 		nodes_.insert(column, {});
-	if (nodes_[column].size() < row)
-		nodes_[column].resize(row);
-	nodes_[column].insert(row, node);
-	setUpdateNeeded(StandardUpdate);
+}
+
+Model::Node* ViewItem::insertNode(Model::Node* node, int column, int row)
+{
+	auto ref = ViewItemNode::withReference(node);
+	insertViewItemNode(ref, column, row);
+	return ref;
 }
 
 void ViewItem::removeNode(Model::Node* node)
 {
-	for (int i = 0; i < nodes_.size(); i++)
+	auto point = positionOfNode(node);
+	if (point.x() != -1)
 	{
-		auto index = nodes_.at(i).indexOf(node);
-		if (index != -1)
-			nodes_[i].remove(index);
+		//If somebody's spacing depends on the node, change it
+		for (auto node : allNodes())
+		{
+			auto viewNode = DCast<ViewItemNode>(node);
+			if (viewNode->spacingTarget() == nodes_[point.x()][point.y()])
+				viewNode->setSpacingTarget(nullptr);
+		}
+		nodes_[point.x()].remove(point.y());
 	}
 	setUpdateNeeded(StandardUpdate);
 }
@@ -75,12 +91,83 @@ const QList<Model::Node*> ViewItem::allNodes() const
 	QList<Model::Node*> result;
 	for (auto column : nodes_)
 		for (auto item : column)
-			result.append(item);
+			if (item)
+				result.append(item);
 	return result;
 }
 
-QVector<QVector<Model::Node*>> ViewItem::nodesGetter()
+const QPoint ViewItem::positionOfNode(Model::Node *node) const
 {
-	return nodes_;
+	for (int i = 0; i < nodes_.size(); i++)
+	{
+		auto index = nodes_.at(i).indexOf(node);
+		if (index != -1)
+			return QPoint(i, index);
+	}
+	return QPoint(-1, -1);
 }
+
+const QPoint ViewItem::positionOfItem(Item *item) const
+{
+	auto vref = DCast<VViewItemNode>(item);
+	if (vref) return positionOfNode(vref->node());
+	else return QPoint(-1, -1);
+}
+
+Model::Node* ViewItem::nodeAt(int column, int row)
+{
+	if (column < 0 || column >= nodes_.size())
+		return nullptr;
+	if (row < 0 || row >= nodes_[column].size())
+		return nullptr;
+	return nodes_[column][row];
+}
+
+void ViewItem::addSpacing(int column, int row, Model::Node* spacingTarget)
+{
+	insertViewItemNode(ViewItemNode::withSpacingTarget(spacingTarget), column, row);
+}
+
+void ViewItem::updateGeometry(int availableWidth, int availableHeight)
+{
+	Super::updateGeometry(availableWidth, availableHeight);
+	bool anyChanges = false;
+	for (auto node : allNodes())
+	{
+		auto asViewItemNode = DCast<ViewItemNode>(node);
+		Q_ASSERT(asViewItemNode);
+		auto item = DCast<VViewItemNode>(findVisualizationOf(asViewItemNode));
+		Q_ASSERT(item);
+		if (item->currentFormIndex() == 1)
+			anyChanges = item->determineSpacing() || anyChanges;
+	}
+	if (anyChanges)
+		setUpdateNeeded(RepeatUpdate);
+}
+
+void ViewItem::insertViewItemNode(ViewItemNode *node, int column, int row)
+{
+	//First, make sure the current grid is big enough to fit the node
+	ensurePositionExists(column, row);
+	//We can either put the node at a free space if exists, or insert otherwise
+	if (nodes_[column][row] == nullptr)
+		nodes_[column][row] = node;
+	else
+		nodes_[column].insert(row, node);
+	setUpdateNeeded(StandardUpdate);
+}
+
+void ViewItem::ensurePositionExists(int column, int row)
+{
+	ensureColumnExists(column);
+	if (nodes_[column].size() <= row)
+		nodes_[column].resize(row + 1);
+}
+
+void ViewItem::ensureColumnExists(int column)
+{
+	if (nodes_.size() <= column)
+		nodes_.resize(column + 1);
+}
+
 }

@@ -25,11 +25,12 @@
  **********************************************************************************************************************/
 #include "GenericTree.h"
 #include "GenericNode.h"
+#include "PiecewiseLoader.h"
 
 namespace FilePersistence {
 
-GenericTree::GenericTree(QString name, QString commitName) :	name_{name}, commitName_{commitName}
-{}
+GenericTree::GenericTree(QString name)
+	: name_{name}{}
 
 GenericTree::~GenericTree()
 {
@@ -37,10 +38,20 @@ GenericTree::~GenericTree()
 	for (auto c : emptyChunks_) delete [] c;
 }
 
+void GenericTree::setPiecewiseLoader(std::shared_ptr<PiecewiseLoader> loader)
+{
+	Q_ASSERT(!piecewiseLoader_);
+	Q_ASSERT(persistentUnits_.isEmpty());
+	Q_ASSERT(quickLookupHash_.isEmpty());
+
+	piecewiseLoader_ = loader;
+}
+
 GenericPersistentUnit& GenericTree::newPersistentUnit(QString name, char* data, int dataSize)
 {
 	Q_ASSERT(!name.isEmpty());
 	Q_ASSERT(!persistentUnits_.contains(name));
+	Q_ASSERT(!data || !piecewiseLoader_);
 
 	return persistentUnits_.insert(name, GenericPersistentUnit(this, name, data, dataSize)).value();
 }
@@ -56,6 +67,11 @@ GenericPersistentUnit* GenericTree::persistentUnit(const QString& name)
 		return nullptr;
 }
 
+GenericNode* GenericTree::find(Model::NodeIdType id)
+{
+	Q_ASSERT(piecewiseLoader_);
+	return quickLookupHash_.value(id);
+}
 
 GenericNode* GenericTree::emptyChunk()
 {
