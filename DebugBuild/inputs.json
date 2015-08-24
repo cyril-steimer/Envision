@@ -1,0 +1,20 @@
+{
+    "GenericHandler.Change Purpose": {
+        "keys": [
+            "F3"
+        ],
+        "state": 0
+    },
+    "GenericHandler.Copy": {
+        "keys": [
+            "Ctrl+C"
+        ],
+        "state": 0
+    },
+    "GenericHandler.Delete": {
+        "keys": [
+            "Del"
+        ],
+        "state": 0
+    }
+}
