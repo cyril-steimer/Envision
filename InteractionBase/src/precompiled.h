@@ -49,6 +49,11 @@
 
 #include <QtGui/QClipboard>
 
+#include "QJsonDocument"
+#include "QJsonArray"
+#include "QJsonValue"
+#include "QJsonObject"
+
 #include <iostream>
 #endif
 
